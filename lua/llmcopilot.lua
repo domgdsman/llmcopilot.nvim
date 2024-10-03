@@ -183,15 +183,21 @@ function M.invoke_llm_and_stream_into_editor(opts, make_curl_args_fn, handle_dat
       parse_and_call(out)
     end,
     on_stderr = function(_, err)
-      vim.notify("Error during curl request: " .. err, vim.log.levels.ERROR)
+      -- Schedule the error notification to be executed safely
+      vim.schedule(function()
+        vim.notify("Error during curl request: " .. err, vim.log.levels.ERROR)
+      end)
     end,
     on_exit = function(j, return_val)
       active_job = nil
       -- Check if the return code is not 200 (or not 0 in shell commands)
       if return_val ~= 0 then
         local response_body = table.concat(response_data, '\n')
-        vim.notify("API request failed with status code " .. return_val, vim.log.levels.ERROR)
-        vim.notify("Response: " .. response_body, vim.log.levels.ERROR)
+        -- Schedule notifications to ensure they are executed safely
+        vim.schedule(function()
+          vim.notify("API request failed with status code " .. return_val, vim.log.levels.ERROR)
+          vim.notify("Response: " .. response_body, vim.log.levels.ERROR)
+        end)
       end
     end,
   }
