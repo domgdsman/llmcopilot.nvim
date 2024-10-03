@@ -87,6 +87,6 @@ Add your API keys to your env (export it in zshrc or bashrc)
 
 ````
 
-## Credits
+## Attribution (this is a fork of):
 
 https://github.com/yacineMTB/dingllm.nvim
