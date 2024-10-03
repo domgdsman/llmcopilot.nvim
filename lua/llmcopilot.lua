@@ -62,7 +62,7 @@ function M.make_anthropic_spec_curl_args(opts, prompt, system_prompt)
     stream = true,
     max_tokens = 4096,
   }
-  local args = { '-N', '-X', 'POST', '-H', 'Content-Type: application/json', '-d', vim.json.encode(data) }
+  local args = { '-s', '-N', '-X', 'POST', '-H', 'Content-Type: application/json', '-d', vim.json.encode(data) }
   if api_key then
     table.insert(args, '-H')
     table.insert(args, 'x-api-key: ' .. api_key)
@@ -84,7 +84,7 @@ function M.make_openai_spec_curl_args(opts, prompt, system_prompt)
     temperature = opts.temp or OPENAI_DEFAULT_TEMPERATURE,
     stream = true,
   }
-  local args = { '-N', '-X', 'POST', '-H', 'Content-Type: application/json', '-d', vim.json.encode(data) }
+  local args = { '-s', '-N', '-X', 'POST', '-H', 'Content-Type: application/json', '-d', vim.json.encode(data) }
   if api_key then
     table.insert(args, '-H')
     table.insert(args, 'Authorization: Bearer ' .. api_key)
@@ -183,20 +183,21 @@ function M.invoke_llm_and_stream_into_editor(opts, make_curl_args_fn, handle_dat
       parse_and_call(out)
     end,
     on_stderr = function(_, err)
-      -- Schedule the error notification to be executed safely
-      vim.schedule(function()
-        vim.notify("Error during curl request: " .. err, vim.log.levels.ERROR)
-      end)
+      -- Only log errors if there is actual error content, skip empty output
+      if err and err ~= "" then
+        vim.schedule(function()
+          vim.api.nvim_err_writeln("Error during curl request: " .. err)
+        end)
+      end
     end,
-    on_exit = function(j, return_val)
+    on_exit = function(_, return_val)
       active_job = nil
-      -- Check if the return code is not 200 (or not 0 in shell commands)
+      -- Check if the return code is not 0 (which indicates success)
       if return_val ~= 0 then
         local response_body = table.concat(response_data, '\n')
-        -- Schedule notifications to ensure they are executed safely
         vim.schedule(function()
-          vim.notify("API request failed with status code " .. return_val, vim.log.levels.ERROR)
-          vim.notify("Response: " .. response_body, vim.log.levels.ERROR)
+          vim.api.nvim_err_writeln("API request failed with status code " .. return_val)
+          vim.api.nvim_err_writeln("Response: " .. response_body)
         end)
       end
     end,
