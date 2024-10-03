@@ -73,13 +73,15 @@ function M.make_anthropic_spec_curl_args(opts, prompt, system_prompt)
   return args
 end
 
+local OPENAI_DEFAULT_TEMPERATURE = 0.1
+
 function M.make_openai_spec_curl_args(opts, prompt, system_prompt)
   local url = opts.url
   local api_key = opts.api_key_name and get_api_key(opts.api_key_name)
   local data = {
     messages = { { role = 'system', content = system_prompt }, { role = 'user', content = prompt } },
     model = opts.model,
-    temperature = 0.7,
+    temperature = opts.temp or OPENAI_DEFAULT_TEMPERATURE,
     stream = true,
   }
   local args = { '-N', '-X', 'POST', '-H', 'Content-Type: application/json', '-d', vim.json.encode(data) }
@@ -154,6 +156,8 @@ function M.invoke_llm_and_stream_into_editor(opts, make_curl_args_fn, handle_dat
   local crow, _ = unpack(vim.api.nvim_win_get_cursor(0))
   local stream_end_extmark_id = vim.api.nvim_buf_set_extmark(0, ns_id, crow - 1, -1, {})
 
+  local response_data = {}
+
   local function parse_and_call(line)
     local event = line:match '^event: (.+)$'
     if event then
@@ -163,6 +167,7 @@ function M.invoke_llm_and_stream_into_editor(opts, make_curl_args_fn, handle_dat
     local data_match = line:match '^data: (.+)$'
     if data_match then
       handle_data_fn(data_match, stream_end_extmark_id, curr_event_state)
+      table.insert(response_data, data_match)  -- Capture response data
     end
   end
 
@@ -177,9 +182,17 @@ function M.invoke_llm_and_stream_into_editor(opts, make_curl_args_fn, handle_dat
     on_stdout = function(_, out)
       parse_and_call(out)
     end,
-    on_stderr = function(_, _) end,
-    on_exit = function()
+    on_stderr = function(_, err)
+      vim.notify("Error during curl request: " .. err, vim.log.levels.ERROR)
+    end,
+    on_exit = function(j, return_val)
       active_job = nil
+      -- Check if the return code is not 200 (or not 0 in shell commands)
+      if return_val ~= 0 then
+        local response_body = table.concat(response_data, '\n')
+        vim.notify("API request failed with status code " .. return_val, vim.log.levels.ERROR)
+        vim.notify("Response: " .. response_body, vim.log.levels.ERROR)
+      end
     end,
   }
 

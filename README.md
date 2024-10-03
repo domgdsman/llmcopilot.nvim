@@ -40,6 +40,7 @@ Add your API keys to your env (export it in zshrc or bashrc)
         llmcopilot.invoke_llm_and_stream_into_editor({
           url = 'https://api.openai.com/v1/chat/completions',
           model = 'gpt-4o',
+          temp = 0.25,
           api_key_name = 'OPENAI_API_KEY',
           system_prompt = system_prompt,
           replace = true,
@@ -50,6 +51,7 @@ Add your API keys to your env (export it in zshrc or bashrc)
         llmcopilot.invoke_llm_and_stream_into_editor({
           url = 'https://api.openai.com/v1/chat/completions',
           model = 'gpt-4o',
+          temp = 0.25,
           api_key_name = 'OPENAI_API_KEY',
           system_prompt = helpful_prompt,
           replace = false,
